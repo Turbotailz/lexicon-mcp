@@ -1,0 +1,44 @@
+{
+  "name": "lexicon-mcp",
+  "version": "0.2.0",
+  "description": "TypeScript MCP server for the Lexicon DJ Local API — library queries, tags, playlists, writes",
+  "type": "module",
+  "bin": {
+    "lexicon-mcp": "./dist/bin/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "start": "node dist/bin/cli.js",
+    "test": "npm run build && node --test dist/test/client.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "lexicon",
+    "dj",
+    "rekordbox",
+    "modelcontextprotocol",
+    "typescript"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Turbotailz/lexicon-mcp.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}
