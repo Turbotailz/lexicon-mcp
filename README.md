@@ -1,6 +1,6 @@
 # lexicon-mcp
 
-TypeScript [MCP](https://modelcontextprotocol.io) server for the [Lexicon DJ](https://www.lexicondj.com) **Local API** — query and update your library from Cursor, Claude Desktop, or any MCP client.
+TypeScript [MCP](https://modelcontextprotocol.io) server for the [Lexicon DJ](https://www.lexicondj.com) **Local API** — query and update your library from Cursor, Claude, VS Code, Windsurf, Cline, or any MCP client.
 
 - API docs: [developers/api](https://www.lexicondj.com/docs/developers/api)
 - OpenAPI: [api-docs.yaml](https://www.lexicondj.com/developer/api-docs.yaml)
@@ -9,40 +9,87 @@ Requires **Lexicon** running with **Settings → Integrations → Local API** en
 
 ## Install
 
+No package install required — `npx -y` downloads and runs the server on demand.
+
+Add this server entry to your MCP client (see below for where each client stores its config):
+
+```json
+"lexicon": {
+  "command": "npx",
+  "args": ["-y", "lexicon-mcp"]
+}
+```
+
+Restart the client after editing (or reload MCP servers where supported). `lexicon-mcp --help` and `lexicon-mcp -v` work in a terminal; the bare command exits with a note (MCP uses stdio pipes).
+
+### Cursor
+
+**Config:** `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project)
+
+```json
+{
+  "mcpServers": {
+    "lexicon": {
+      "command": "npx",
+      "args": ["-y", "lexicon-mcp"]
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+**Config:** `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS), `%APPDATA%\Claude\claude_desktop_config.json` (Windows), or `~/.config/Claude/claude_desktop_config.json` (Linux)
+
+Same `mcpServers` format as Cursor. Fully quit and reopen Claude Desktop after saving.
+
+### Claude Code
+
+**CLI** (project scope, writes to `.mcp.json`):
+
 ```bash
-npx lexicon-mcp
+claude mcp add lexicon -- npx -y lexicon-mcp
 ```
 
-After `npm link` from a clone:
+**CLI with environment variables:**
+
+```bash
+claude mcp add -e LEXICON_MCP_ALLOW_WRITES=1 lexicon -- npx -y lexicon-mcp
+```
+
+Use `-s user` for a global server across all projects. Config files: `.mcp.json` (project) or `~/.claude.json` (user).
+
+### VS Code / GitHub Copilot
+
+**Config:** `.vscode/mcp.json` (workspace) or user-profile `mcp.json` (run **MCP: Open User Configuration**)
+
+VS Code uses a `servers` key and a `type` field:
 
 ```json
 {
-  "mcpServers": {
+  "servers": {
     "lexicon": {
-      "command": "lexicon-mcp"
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "lexicon-mcp"]
     }
   }
 }
 ```
 
-Local development:
+### Windsurf
 
-```json
-{
-  "mcpServers": {
-    "lexicon": {
-      "command": "node",
-      "args": ["/absolute/path/to/lexicon-mcp/dist/bin/cli.js"]
-    }
-  }
-}
-```
+**Config:** `~/.codeium/windsurf/mcp_config.json` (macOS/Linux) or `%USERPROFILE%\.codeium\windsurf\mcp_config.json` (Windows)
 
-Run `npm run build` after pulling changes. Restart Cursor to reload MCP tools.
+Same `mcpServers` format as Cursor. Restart Windsurf after saving.
 
-`lexicon-mcp --help` and `lexicon-mcp -v` work in a terminal; the bare command exits with a note (MCP uses stdio pipes).
+### Cline
 
-## Environment
+**Config:** Cline sidebar → MCP Servers → Configure, or `~/.cline/mcp.json` (CLI). In VS Code/Cursor extensions, settings are stored under the extension's global storage as `cline_mcp_settings.json`.
+
+Same `mcpServers` format as Cursor.
+
+### Environment
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -50,6 +97,49 @@ Run `npm run build` after pulling changes. Restart Cursor to reload MCP tools.
 | `LEXICON_PORT` | `48624` | API port |
 | `LEXICON_URL` | — | Full base URL override |
 | `LEXICON_MCP_ALLOW_WRITES` | off | Set to `1` to enable PATCH/POST/DELETE |
+
+Add an `env` block to the server entry (or pass `-e KEY=value` with `claude mcp add`):
+
+**Remote Lexicon** — API on another host:
+
+```json
+"env": {
+  "LEXICON_HOST": "192.168.1.50",
+  "LEXICON_PORT": "48624"
+}
+```
+
+**Custom URL** — override host/port with a full base URL:
+
+```json
+"env": {
+  "LEXICON_URL": "http://studio.local:48624"
+}
+```
+
+**Writes enabled** — allow track updates, playback control, and other mutating API calls:
+
+```json
+"env": {
+  "LEXICON_MCP_ALLOW_WRITES": "1"
+}
+```
+
+Example with environment options in Cursor:
+
+```json
+{
+  "mcpServers": {
+    "lexicon": {
+      "command": "npx",
+      "args": ["-y", "lexicon-mcp"],
+      "env": {
+        "LEXICON_MCP_ALLOW_WRITES": "1"
+      }
+    }
+  }
+}
+```
 
 ## Tools
 
@@ -84,23 +174,6 @@ Run `npm run build` after pulling changes. Restart Cursor to reload MCP tools.
 | `lexicon_request` | Full API — prefer this over deprecated `lexicon_raw_request` |
 | `lexicon_raw_request` | GET only (deprecated) |
 
-### Search filter examples
-
-```json
-{ "tags": "irh" }
-{ "tags": "!house" }
-{ "tags": "~house, handbag" }
-{ "artist": "Lady Gaga" }
-{ "location": "*DJ-incoming*" }
-```
-
-### Control examples (writes enabled)
-
-```json
-{ "action": "Incoming_SelectedDone" }
-{ "action": "Application_Tags_AddShortcut", "parameters": { "amount": 1 } }
-```
-
 ## Development
 
 ```bash
@@ -109,14 +182,3 @@ npm run build
 npm test
 npm link   # optional global bin
 ```
-
-## Publish
-
-```bash
-npm login
-npm publish --access public
-```
-
-## License
-
-MIT
