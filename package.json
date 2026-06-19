@@ -1,6 +1,6 @@
 {
   "name": "lexicon-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "TypeScript MCP server for the Lexicon DJ Local API — library queries, tags, playlists, writes",
   "type": "module",
   "bin": {
