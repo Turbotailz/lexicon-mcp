@@ -1,4 +1,4 @@
-import { apiGet, apiPatch } from "../client.js";
+import { apiDelete, apiGet, apiPatch, apiPost } from "../client.js";
 import type { LexiconResponse, TrackEdits, TrackSummary, TracksListData } from "../types.js";
 
 const DEFAULT_LIST_FIELDS = [
@@ -46,18 +46,29 @@ export async function ping(): Promise<{
   };
 }
 
+export type TrackSource = "non-archived" | "all" | "archived" | "incoming";
+
+export interface TrackSort {
+  field: string;
+  dir?: "asc" | "desc";
+}
+
+const DEFAULT_SORT: TrackSort[] = [{ field: "dateAdded", dir: "desc" }];
+
 export async function listTracks(opts: {
   limit?: number;
   offset?: number;
+  source?: TrackSource;
   fields?: string[];
+  sort?: TrackSort[];
 } = {}): Promise<{ total: number; tracks: TrackSummary[] }> {
-  const { limit = 50, offset = 0, fields } = opts;
+  const { limit = 50, offset = 0, source = "non-archived", fields, sort } = opts;
   const res = await apiGet<TracksListData>("/v1/tracks", {
     limit,
     offset,
-    source: "non-archived",
+    source,
     fields: fields ?? [...DEFAULT_LIST_FIELDS],
-    sort: [{ field: "dateAdded", dir: "desc" }],
+    sort: sort ?? DEFAULT_SORT,
   });
   return {
     total: res.data?.total ?? 0,
@@ -67,13 +78,19 @@ export async function listTracks(opts: {
 
 export async function searchTracks(opts: {
   filter: Record<string, unknown>;
+  limit?: number;
+  offset?: number;
+  source?: TrackSource;
   fields?: string[];
+  sort?: TrackSort[];
 }): Promise<{ total: number; tracks: TrackSummary[] }> {
   const res = await apiGet<TracksListData>("/v1/search/tracks", {
-    source: "non-archived",
+    source: opts.source ?? "non-archived",
     filter: opts.filter,
     fields: opts.fields ?? [...DEFAULT_SEARCH_FIELDS],
-    sort: [{ field: "dateAdded", dir: "desc" }],
+    sort: opts.sort ?? DEFAULT_SORT,
+    limit: opts.limit ?? 50,
+    offset: opts.offset ?? 0,
   });
   return {
     total: res.data?.total ?? 0,
@@ -81,16 +98,47 @@ export async function searchTracks(opts: {
   };
 }
 
-export async function getTrack(id: number): Promise<TrackSummary | null> {
+/** `selected` is the topmost track selected in Lexicon. Error 113 when nothing is selected. */
+export async function getTrack(id: number | "selected"): Promise<TrackSummary | null> {
   const res = await apiGet<{ track: TrackSummary }>("/v1/track", { id });
   return res.data?.track ?? null;
 }
 
+export async function getSelectedTrackIds(): Promise<number[]> {
+  const res = await apiGet<{ ids?: number[] }>("/v1/tracks/selected", {});
+  return res.data?.ids ?? [];
+}
+
+/**
+ * `id: "selected"` applies edits to every track selected in Lexicon.
+ * A relative numeric string (`+1`, `-2`) counts from each track's own value.
+ */
 export async function updateTrack(
-  id: number,
+  id: number | "selected",
   edits: TrackEdits,
 ): Promise<LexiconResponse<unknown>> {
   return apiPatch("/v1/track", { id, edits });
+}
+
+export async function addTracks(locations: string[]): Promise<LexiconResponse<unknown>> {
+  return apiPost("/v1/tracks", { locations });
+}
+
+export async function deleteTracks(ids: number[]): Promise<LexiconResponse<unknown>> {
+  return apiDelete("/v1/tracks", { ids });
+}
+
+export async function updateTrackLocation(input: {
+  id: number;
+  location: string;
+  checkFileExists?: boolean;
+}): Promise<LexiconResponse<unknown>> {
+  const body: Record<string, unknown> = {
+    id: input.id,
+    location: input.location,
+  };
+  if (input.checkFileExists !== undefined) body.checkFileExists = input.checkFileExists;
+  return apiPatch("/v1/track/location", body);
 }
 
 export async function listIncoming(opts: { limit?: number } = {}): Promise<{
